@@ -1,9 +1,17 @@
 ---
-title: "Untitled"
+title: "get coaches"
 output: html_document
 ---
 
-```{r, library-calls}
+```{r, conditional-eval}
+
+filename <- "in/coaches_buli.rds"
+
+eval_cond <- !file.exists(filename)
+
+```
+
+```{r, library-calls, eval=eval_cond}
 
 library(worldfootballR)
 library(magrittr)
@@ -15,16 +23,16 @@ library(tidyverse)
 
 ```
 
-```{r, setup-parallel}
+```{r, setup-parallel, eval=eval_cond}
 
 par_cores <- availableCores() - 1
-plan("multisession", workers = par_coress)
+plan("multisession", workers = par_cores, gc = TRUE)
 
 ```
 
-```{r, get-buli-teams}
+```{r, get-buli-teams, eval=eval_cond}
 
-years <- 1990:(year(Sys.Date()) - 1)
+years <- 2000:(year(Sys.Date()) - 1)
 
 buli_teams <- future_map(years,
                          ~ tm_league_team_urls(country_name = "Germany", start_year = .x))
@@ -39,7 +47,7 @@ buli_teams_list <- split_function(x = buli_teams, n = par_cores)
 
 ```
 
-```{r, get-coaches}
+```{r, get-coaches, eval=eval_cond}
 
 club_manager_history <- future_map(
   buli_teams_list, ~
@@ -49,5 +57,11 @@ club_manager_history <- future_map(
 club_manager_table <- club_manager_history %>% 
   bind_rows() %>% 
   unique()
+
+```
+
+```{r, save-coaches-buli, eval=eval_cond}
+
+saveRDS(object = club_manager_table, file = filename)
 
 ```
