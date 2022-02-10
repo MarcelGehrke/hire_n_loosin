@@ -8,7 +8,6 @@ output: html_document
 filename <- "in/coaches_buli.rds"
 
 eval_cond <- !file.exists(filename)
-
 ```
 
 ```{r, library-calls, eval=eval_cond}
@@ -19,31 +18,30 @@ library(lubridate)
 library(furrr)
 library(future)
 library(tidyverse)
-
 ```
 
 ```{r, setup-parallel, eval=eval_cond}
 
 par_cores <- availableCores() - 1
 plan("multisession", workers = par_cores, gc = TRUE)
-
 ```
 
 ```{r, get-buli-teams, eval=eval_cond}
 
 years <- 2000:(year(Sys.Date()) - 1)
 
-buli_teams <- future_map(years,
-                         ~ tm_league_team_urls(country_name = "Germany", start_year = .x))
+buli_teams <- future_map(
+  years,
+  ~ tm_league_team_urls(country_name = "Germany", start_year = .x)
+)
 
 buli_teams %<>% unlist()
 
 # 2. BL: league_url = "https://www.transfermarkt.de/2-bundesliga/startseite/wettbewerb/L2"
 
-split_function <- function(x, n) split(x, cut(seq_along(x), n, labels = FALSE)) 
+split_function <- function(x, n) split(x, cut(seq_along(x), n, labels = FALSE))
 
 buli_teams_list <- split_function(x = buli_teams, n = par_cores)
-
 ```
 
 ```{r, get-coaches, eval=eval_cond}
@@ -53,14 +51,12 @@ club_manager_history <- future_map(
   tm_team_staff_history(team_urls = .x, staff_role = "Manager")
 )
 
-club_manager_table <- club_manager_history %>% 
-  bind_rows() %>% 
+club_manager_table <- club_manager_history %>%
+  bind_rows() %>%
   unique()
-
 ```
 
 ```{r, save-coaches-buli, eval=eval_cond}
 
 saveRDS(object = club_manager_table, file = filename)
-
 ```
