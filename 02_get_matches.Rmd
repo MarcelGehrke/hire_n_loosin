@@ -1,0 +1,76 @@
+---
+title: "get matches"
+output: html_document
+---
+
+```{r, conditional-eval}
+
+filename <- "in/matches_buli.rds"
+
+eval_cond <- !file.exists(filename)
+```
+
+```{r setup, include=FALSE, eval=eval_cond}
+knitr::opts_chunk$set(echo = TRUE)
+library(worldfootballR)
+library(magrittr)
+library(lubridate)
+library(furrr)
+library(future)
+library(tidyverse)
+
+source(file = "R/replace_val_w_key.R", local = TRUE)
+```
+
+```{r, setup-parallel, eval=eval_cond}
+
+par_cores <- availableCores() - 1
+plan("multisession", workers = par_cores, gc = TRUE)
+
+```
+
+```{r, get-matches, eval=eval_cond}
+
+years <- 2000:(year(Sys.Date()) - 1)
+
+buli_matches <- future_map(
+  years,
+  ~ get_match_results(country = "GER", gender = "M", season_end_year = .x, tier = "1st") %>%
+    select(-Competition_Name, -MatchURL)
+)
+
+buli_matches %<>% bind_rows() %>%
+  mutate(table = "matches")
+```
+
+```{r, get-mapping}
+
+mapping <- readxl::read_excel("in/mapping.xlsx")
+```
+
+```{r, save-matches-buli, eval=eval_cond}
+
+saveRDS(object = buli_matches, file = "in/buli_matches_raw.rds")
+```
+
+```{r, etl-for-coach-case, eval=eval_cond}
+
+data <- buli_matches %>%
+  select(Date, Home, HomeGoals, Away, AwayGoals) %>%
+  mutate(
+    winner = case_when(
+      HomeGoals > AwayGoals ~ Home,
+      HomeGoals < AwayGoals ~ Away,
+      HomeGoals == AwayGoals ~ NA_character_
+    ),
+    draw1 = if_else(is.na(winner), Home, NA_character_),
+    draw2 = if_else(is.na(winner), Away, NA_character_)
+  ) %>%
+  as_tibble()
+
+data %<>%
+   mutate(across(c(Home, Away, winner, draw1, draw2), ~ replace_val_w_key_v(.x)))
+
+saveRDS(object = data, file = filename)
+
+```
