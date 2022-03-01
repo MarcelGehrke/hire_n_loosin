@@ -10,7 +10,7 @@ filename <- "in/coaches_buli.rds"
 eval_cond <- !file.exists(filename)
 ```
 
-```{r, library-calls, eval=eval_cond}
+```{r, library-calls}
 
 library(worldfootballR)
 library(magrittr)
@@ -30,7 +30,7 @@ plan("multisession", workers = par_cores, gc = TRUE)
 
 ```{r, get-buli-teams, eval=eval_cond}
 
-years <- 2000:(year(Sys.Date()) - 1)
+years <- 1990:(year(Sys.Date()) - 1)
 
 buli_teams <- future_map(
   years,

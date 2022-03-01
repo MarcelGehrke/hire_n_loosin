@@ -31,7 +31,7 @@ plan("multisession", workers = par_cores, gc = TRUE)
 
 ```{r, get-matches, eval=eval_cond}
 
-years <- 2000:(year(Sys.Date()) - 1)
+years <- 1990:(year(Sys.Date()) - 1)
 
 buli_matches <- future_map(
   years,
