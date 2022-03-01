@@ -1,0 +1,84 @@
+---
+title: "03_combine_matches_coaches"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source("R/get_rel_games.R", local = TRUE)
+library(tidyverse)
+library(lubridate)
+library(magrittr)
+```
+
+```{r, read-data}
+
+coaches <- readRDS("in/coaches_buli.rds")
+
+matches <- readRDS("in/matches_buli.rds")
+```
+
+```{r, prepare-coaches}
+
+coaches %<>%
+  filter(league == "Bundesliga") %>%
+  select(
+    team_name,
+    coach = staff_name,
+    staff_dob,
+    contains("nationality"),
+    appointed,
+    end_date,
+    matches,
+    days_in_post,
+    wins,
+    draws,
+    losses,
+    ppg
+  )
+
+coaches %<>% filter(year(end_date) >= 1990)
+
+all_teams <- dplyr::intersect(matches$Home, matches$Away)
+
+matches_per_team <- list()
+
+for (team in all_teams) {
+  matches_per_team[[team]] <- matches %>%
+    filter(Home == team | Away == team)
+}
+
+coaches_sacked_per_team <- list()
+
+for (team in all_teams) {
+  coaches_sacked_per_team[[team]] <- coaches %>%
+    filter(team_name == team) %>%
+    select(end_date) %>%
+    pull()
+}
+```
+
+```{r, utils-func}
+
+forward_games <- map(all_teams, ~ get_rel_games(
+  games = matches_per_team,
+  coaches = coaches_sacked_per_team,
+  club = .x,
+  direction = "forward"
+)) %>%
+  compact() %>%
+  bind_rows()
+
+backward_games <- map(all_teams, ~ get_rel_games(
+  games = matches_per_team,
+  coaches = coaches_sacked_per_team,
+  club = .x,
+  direction = "backward"
+)) %>%
+  compact() %>%
+  bind_rows()
+
+tmp <- bind_rows(forward_games, backward_games)
+
+tmp %>% group_by(direction, homegame,result) %>% summarise(anz = n(), .groups = "drop") %>% mutate(ant = anz / sum(anz))
+```
